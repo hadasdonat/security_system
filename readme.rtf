@@ -1,0 +1,99 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2868
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Bold;\f1\froman\fcharset0 Times-Roman;\f2\fnil\fcharset0 .AppleSystemUIFontMonospaced-Regular;
+\f3\fnil\fcharset0 HelveticaNeue;}
+{\colortbl;\red255\green255\blue255;\red16\green16\blue16;\red255\green255\blue255;\red118\green23\blue27;
+\red249\green248\blue242;\red16\green19\blue24;\red46\green47\blue44;\red236\green234\blue224;\red0\green0\blue0;
+}
+{\*\expandedcolortbl;;\cssrgb\c7843\c7843\c7451;\cssrgb\c100000\c100000\c100000;\cssrgb\c54118\c14118\c14118;
+\cssrgb\c98039\c97647\c96078\c50196;\cssrgb\c7843\c9412\c12157;\cssrgb\c23922\c23922\c22745;\cssrgb\c94118\c93333\c90196;\cssrgb\c0\c0\c0;
+}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid1}
+{\list\listtemplateid2\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}}{\leveltext\leveltemplateid101\'01\'00;}{\levelnumbers\'01;}\fi-360\li720\lin720 }{\listname ;}\listid2}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\b\fs21 \cf2 \cb3 \expnd0\expndtw0\kerning0
+Files:
+\f1\b0 \cb1 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls1\ilvl0
+\f2\fs26 \cf4 \cb5 \kerning1\expnd0\expndtw0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+serve.py
+\f1\fs21 \cf2 \cb3 \'a0- Python dev server with CORS headers (port 8000)\cb1 \
+\ls1\ilvl0
+\f2\fs26 \cf4 \cb5 \kerning1\expnd0\expndtw0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+index.html
+\f1\fs21 \cf2 \cb3 \'a0- UI with mode tabs, video preview, prompt input, history area\cb1 \
+\ls1\ilvl0
+\f2\fs26 \cf4 \cb5 \kerning1\expnd0\expndtw0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+style.css
+\f1\fs21 \cf2 \cb3 \'a0- Dark theme responsive styling\cb1 \
+\ls1\ilvl0
+\f2\fs26 \cf4 \cb5 \kerning1\expnd0\expndtw0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+modules/camera.js
+\f1\fs21 \cf2 \cb3 \'a0- Webcam, file upload, and URL input handling\cb1 \
+\ls1\ilvl0
+\f2\fs26 \cf4 \cb5 \kerning1\expnd0\expndtw0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+modules/frames.js
+\f1\fs21 \cf2 \cb3 \'a0- Frame capture at 640x480 JPEG, base64 conversion\cb1 \
+\ls1\ilvl0
+\f2\fs26 \cf4 \cb5 \kerning1\expnd0\expndtw0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+modules/ollama.js
+\f1\fs21 \cf2 \cb3 \'a0- Ollama API client with streaming response parsing\cb1 \
+\ls1\ilvl0
+\f2\fs26 \cf4 \cb5 \kerning1\expnd0\expndtw0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+app.js
+\f1\fs21 \cf2 \cb3 \'a0- Main orchestration: capture loop, mode switching, UI state\cb1 \
+\pard\pardeftab720\partightenfactor0
+
+\f0\b \cf2 \cb3 To run it:
+\f1\b0 \cb1 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf2 \cb3 \kerning1\expnd0\expndtw0 {\listtext	1	}\expnd0\expndtw0\kerning0
+Install Ollama if not already installed:\cb1 \uc0\u8232 
+\f2\fs26 \cf6 \cb5 brew install ollama\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf6 \cb1 \kerning1\expnd0\expndtw0 {\listtext	2	}
+\f1\fs28 \cf7 \cb8 \expnd0\expndtw0\kerning0
+\uc0\u8232 
+\fs21 \cf2 \cb1 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf2 \cb3 \kerning1\expnd0\expndtw0 {\listtext	3	}\expnd0\expndtw0\kerning0
+Start Ollama and pull the model:\cb1 \uc0\u8232 
+\f2\fs26 \cf6 \cb5 ollama serve\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf6 \kerning1\expnd0\expndtw0 {\listtext	4	}\expnd0\expndtw0\kerning0
+ollama pull qwen2.5vl:3b\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf6 \cb1 \kerning1\expnd0\expndtw0 {\listtext	5	}
+\f1\fs21 \cf2 \expnd0\expndtw0\kerning0
+\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf2 \cb3 \kerning1\expnd0\expndtw0 {\listtext	6	}\expnd0\expndtw0\kerning0
+Start the dev server:\cb1 \uc0\u8232 
+\f2\fs26 \cf6 \cb5 cd vision-vlm-app\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf6 \kerning1\expnd0\expndtw0 {\listtext	7	}\expnd0\expndtw0\kerning0
+python3 serve.py\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf6 \cb1 \kerning1\expnd0\expndtw0 {\listtext	8	}
+\f1\fs21 \cf2 \expnd0\expndtw0\kerning0
+\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0\cf2 \cb3 \kerning1\expnd0\expndtw0 {\listtext	9	}\expnd0\expndtw0\kerning0
+Open\'a0
+\f2\fs26 \cf4 \cb5 http://localhost:8000
+\f1\fs21 \cf2 \cb3 \'a0in Chrome\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3 The app will check the Ollama connection on load (green/red indicator in the header). Select webcam, file, or URL mode, type a custom prompt, set the capture interval (1-10 seconds), and hit Start. Responses stream in token-by-token and accumulate in a scrollable history with timestamps.\cb1 \
+\pard\pardeftab720\partightenfactor0
+
+\fs24 \cf0 \
+ Cd \outl0\strokewidth0 \strokec9 /Users/netanelamar/Google Drive/My Drive/Business/AI Research Sources/Code\
+\outl0\strokewidth0 \
+\pard\pardeftab720\qc\partightenfactor0
+
+\f3\fs18 \cf7 \
+}
