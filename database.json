@@ -1,0 +1,17 @@
+[
+  {
+    "type": "news",
+    "description": "News headlines about someone suspicious seen",
+    "timestamp": "2026-05-12T15:11:00+03:00"
+  },
+  {
+    "type": "whatsapp",
+    "description": "Masked person seen whatsapp massages",
+    "timestamp": "2026-05-12T11:50:00+03:00"
+  },
+  {
+    "type": "old_threat",
+    "description": "Suspicious activity reported yesterday",
+    "timestamp": "2026-05-11T10:00:00+03:00"
+  }
+]

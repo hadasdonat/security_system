@@ -385,7 +385,27 @@ class StreamController {
             // Check if the response contains the standalone word "yes"
             if (/\byes\b/i.test(finalResponse)) {
                 const camTitle = this.panel.querySelector('.cam-title').textContent.split('//')[0].trim();
-                this.triggerAlert(`Masked Person Detected on ${camTitle}!`);
+                
+                let seriousThreat = false;
+                try {
+                    const dbRes = await fetch('database.json', { cache: 'no-store' });
+                    if (dbRes.ok) {
+                        const db = await dbRes.json();
+                        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                        const recentThreat = db.find(item => new Date(item.timestamp) > oneHourAgo);
+                        if (recentThreat) {
+                            seriousThreat = true;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch threat database:", err);
+                }
+
+                if (seriousThreat) {
+                    this.triggerAlert(`Masked Person Detected on ${camTitle}! \n Warning - seriuos threat!!!`);
+                } else {
+                    this.triggerAlert(`Masked Person Detected on ${camTitle}!`);
+                }
             }
             
         } catch (err) {
