@@ -357,6 +357,37 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 @keyframes flash { 0% { opacity: 0.8; } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } }
 @keyframes pulse-border { 0%, 100% { border-color: #ff003c; } 50% { border-color: #660018; } }
 
+/* Custom Toasts */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    pointer-events: none;
+}
+
+.toast {
+    background: rgba(255, 0, 60, 0.95);
+    color: white;
+    padding: 20px 30px;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    box-shadow: 0 0 20px rgba(255, 0, 60, 0.8);
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: auto;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #0a0a0a; }

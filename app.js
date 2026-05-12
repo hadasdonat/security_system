@@ -329,10 +329,48 @@ class StreamController {
         // Visual alert on the panel
         this.panel.classList.add('alert-active');
         
-        // Browser Notification
+        // Play Alarm Sound (Web Audio API)
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const audioCtx = new AudioContext();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+            oscillator.frequency.setValueAtTime(1108.73, audioCtx.currentTime + 0.15); // C#6 note
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.3);
+        } catch(e) {
+            console.error("Audio playback error", e);
+        }
+
+        // Custom HTML Toast Notification
+        const toastContainer = document.getElementById('toast-container');
+        if (toastContainer) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = message.replace('\n', '<br>');
+            toastContainer.appendChild(toast);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => toast.classList.add('show'));
+            });
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 5000);
+        }
+
+        // Browser Native Notification (Fallback/Background)
         if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('SENTRY OS - SECURITY ALERT', {
-                body: message,
+            new Notification(message, {
+                body: 'SENTRY OS - SECURITY ALERT',
                 requireInteraction: true
             });
         }
@@ -402,7 +440,7 @@ class StreamController {
                 }
 
                 if (seriousThreat) {
-                    this.triggerAlert(`Masked Person Detected on ${camTitle}! \n Warning - seriuos threat!!!`);
+                    this.triggerAlert("Warning - seriuos threat!!!");
                 } else {
                     this.triggerAlert(`Masked Person Detected on ${camTitle}!`);
                 }
