@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTRY OS - Active Monitoring</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <header class="sys-header">
+    <div class="logo">
+      <span class="pulse-dot"></span> SENTRY OS
+    </div>
+    <div id="global-connection-status" class="status checking">
+      <span class="dot"></span>
+      <span id="global-status-text">INITIALIZING VLM...</span>
+    </div>
+  </header>
+
+  <div class="grid-4-layout" id="main-grid">
+
+    <!-- CAMERA 1 -->
+    <div class="stream-panel" id="stream-1">
+      <div class="panel-header">
+        <div class="cam-title">CAM 01 // MAIN ENTRY</div>
+        <div class="rec-indicator"><span class="dot"></span> REC</div>
+      </div>
+      
+      <div class="video-container">
+        <video class="video" autoplay muted playsinline></video>
+        <div class="overlay-info">
+          <div class="timestamp" id="ts-1">00:00:00</div>
+          <div class="crosshair"></div>
+        </div>
+      </div>
+
+      <div class="cam-controls">
+        <nav class="mode-tabs">
+          <button class="tab" data-mode="webcam">LIVE WEBCAM</button>
+          <button class="tab active" data-mode="file">UPLOAD VIDEO</button>
+          <button class="tab" data-mode="url">URL FEED</button>
+        </nav>
+        
+        <div class="input-controls">
+          <div class="file-input-area mode-input"><input type="file" class="video-file" accept="video/*,image/*"></div>
+          <div class="url-input-area hidden mode-input"><input type="text" class="video-url" placeholder="Enter feed URL..."><button class="load-url-btn">LINK</button></div>
+        </div>
+
+        <div class="vlm-config">
+          <input type="text" class="prompt-input" value="Is the person wearing a mask?" placeholder="VLM Directive...">
+          <div class="settings-row">
+            <label>SCAN RATE: <span class="interval-value">3</span>s <input type="range" class="interval-slider" min="1" max="10" value="3"></label>
+            <div class="action-buttons">
+              <button class="start-btn" disabled>ENGAGE</button>
+              <button class="stop-btn" disabled>HALT</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="process-status"><span class="process-text">STANDBY</span></div>
+        
+        <div class="log-section">
+          <div class="log-header">
+            <span>SYS LOGS</span>
+            <button class="clear-history-btn">CLR</button>
+          </div>
+          <div class="response-history"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMERA 2 -->
+    <div class="stream-panel" id="stream-2">
+      <div class="panel-header">
+        <div class="cam-title">CAM 02 // PERIMETER</div>
+        <div class="rec-indicator"><span class="dot"></span> REC</div>
+      </div>
+      
+      <div class="video-container">
+        <video class="video" autoplay muted playsinline></video>
+        <div class="overlay-info">
+          <div class="timestamp" id="ts-2">00:00:00</div>
+          <div class="crosshair"></div>
+        </div>
+      </div>
+
+      <div class="cam-controls">
+        <nav class="mode-tabs">
+          <button class="tab" data-mode="webcam">LIVE WEBCAM</button>
+          <button class="tab active" data-mode="file">UPLOAD VIDEO</button>
+          <button class="tab" data-mode="url">URL FEED</button>
+        </nav>
+        
+        <div class="input-controls">
+          <div class="file-input-area mode-input"><input type="file" class="video-file" accept="video/*,image/*"></div>
+          <div class="url-input-area hidden mode-input"><input type="text" class="video-url" placeholder="Enter feed URL..."><button class="load-url-btn">LINK</button></div>
+        </div>
+
+        <div class="vlm-config">
+          <input type="text" class="prompt-input" value="Is the person wearing a mask?" placeholder="VLM Directive...">
+          <div class="settings-row">
+            <label>SCAN RATE: <span class="interval-value">3</span>s <input type="range" class="interval-slider" min="1" max="10" value="3"></label>
+            <div class="action-buttons">
+              <button class="start-btn" disabled>ENGAGE</button>
+              <button class="stop-btn" disabled>HALT</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="process-status"><span class="process-text">STANDBY</span></div>
+        
+        <div class="log-section">
+          <div class="log-header">
+            <span>SYS LOGS</span>
+            <button class="clear-history-btn">CLR</button>
+          </div>
+          <div class="response-history"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMERA 3 -->
+    <div class="stream-panel" id="stream-3">
+      <div class="panel-header">
+        <div class="cam-title">CAM 03 // SERVER ROOM</div>
+        <div class="rec-indicator"><span class="dot"></span> REC</div>
+      </div>
+      
+      <div class="video-container">
+        <video class="video" autoplay muted playsinline></video>
+        <div class="overlay-info">
+          <div class="timestamp" id="ts-3">00:00:00</div>
+          <div class="crosshair"></div>
+        </div>
+      </div>
+
+      <div class="cam-controls">
+        <nav class="mode-tabs">
+          <button class="tab" data-mode="webcam">LIVE WEBCAM</button>
+          <button class="tab active" data-mode="file">UPLOAD VIDEO</button>
+          <button class="tab" data-mode="url">URL FEED</button>
+        </nav>
+        
+        <div class="input-controls">
+          <div class="file-input-area mode-input"><input type="file" class="video-file" accept="video/*,image/*"></div>
+          <div class="url-input-area hidden mode-input"><input type="text" class="video-url" placeholder="Enter feed URL..."><button class="load-url-btn">LINK</button></div>
+        </div>
+
+        <div class="vlm-config">
+          <input type="text" class="prompt-input" value="Is the person wearing a mask?" placeholder="VLM Directive...">
+          <div class="settings-row">
+            <label>SCAN RATE: <span class="interval-value">3</span>s <input type="range" class="interval-slider" min="1" max="10" value="3"></label>
+            <div class="action-buttons">
+              <button class="start-btn" disabled>ENGAGE</button>
+              <button class="stop-btn" disabled>HALT</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="process-status"><span class="process-text">STANDBY</span></div>
+        
+        <div class="log-section">
+          <div class="log-header">
+            <span>SYS LOGS</span>
+            <button class="clear-history-btn">CLR</button>
+          </div>
+          <div class="response-history"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMERA 4 -->
+    <div class="stream-panel" id="stream-4">
+      <div class="panel-header">
+        <div class="cam-title">CAM 04 // BACK ALLEY</div>
+        <div class="rec-indicator"><span class="dot"></span> REC</div>
+      </div>
+      
+      <div class="video-container">
+        <video class="video" autoplay muted playsinline></video>
+        <div class="overlay-info">
+          <div class="timestamp" id="ts-4">00:00:00</div>
+          <div class="crosshair"></div>
+        </div>
+      </div>
+
+      <div class="cam-controls">
+        <nav class="mode-tabs">
+          <button class="tab" data-mode="webcam">LIVE WEBCAM</button>
+          <button class="tab active" data-mode="file">UPLOAD VIDEO</button>
+          <button class="tab" data-mode="url">URL FEED</button>
+        </nav>
+        
+        <div class="input-controls">
+          <div class="file-input-area mode-input"><input type="file" class="video-file" accept="video/*,image/*"></div>
+          <div class="url-input-area hidden mode-input"><input type="text" class="video-url" placeholder="Enter feed URL..."><button class="load-url-btn">LINK</button></div>
+        </div>
+
+        <div class="vlm-config">
+          <input type="text" class="prompt-input" value="Is the person wearing a mask?" placeholder="VLM Directive...">
+          <div class="settings-row">
+            <label>SCAN RATE: <span class="interval-value">3</span>s <input type="range" class="interval-slider" min="1" max="10" value="3"></label>
+            <div class="action-buttons">
+              <button class="start-btn" disabled>ENGAGE</button>
+              <button class="stop-btn" disabled>HALT</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="process-status"><span class="process-text">STANDBY</span></div>
+        
+        <div class="log-section">
+          <div class="log-header">
+            <span>SYS LOGS</span>
+            <button class="clear-history-btn">CLR</button>
+          </div>
+          <div class="response-history"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Browser Notification Permission Prompt / Overlay -->
+  <div id="notification-permission-banner" class="hidden">
+    SENTRY OS requires notification permissions to alert you of detected threats.
+    <button id="enable-notifications-btn">Enable</button>
+  </div>
+
+  <script src="app.js?v=8"></script>
+</body>
+</html>

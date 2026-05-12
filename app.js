@@ -1,0 +1,436 @@
+// ==========================================
+// CAMERA HANDLER
+// ==========================================
+class CameraHandler {
+    constructor(videoElement) {
+        this.videoElement = videoElement;
+        this.currentStream = null;
+        this.currentObjectURL = null;
+    }
+
+    async startWebcam() {
+        this.stop();
+        // getUserMedia requires HTTPS or localhost. If running via file:// it might fail.
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        this.currentStream = stream;
+        this.videoElement.srcObject = stream;
+        this.videoElement.muted = true;
+        await this.videoElement.play();
+    }
+
+    loadFile(file) {
+        this.stop();
+        const url = URL.createObjectURL(file);
+        this.currentObjectURL = url;
+        this.videoElement.srcObject = null;
+        this.videoElement.src = url;
+        this.videoElement.muted = true;
+        this.videoElement.loop = true;
+        this.videoElement.play();
+    }
+
+    loadURL(url) {
+        this.stop();
+        this.videoElement.srcObject = null;
+        this.videoElement.src = url;
+        this.videoElement.muted = true;
+        this.videoElement.loop = true;
+        this.videoElement.crossOrigin = 'anonymous';
+        this.videoElement.play();
+    }
+
+    stop() {
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(t => t.stop());
+            this.currentStream = null;
+        }
+        if (this.currentObjectURL) {
+            URL.revokeObjectURL(this.currentObjectURL);
+            this.currentObjectURL = null;
+        }
+        this.videoElement.srcObject = null;
+        this.videoElement.src = '';
+        this.videoElement.load();
+    }
+}
+
+// ==========================================
+// FRAMES
+// ==========================================
+const canvas = document.createElement('canvas');
+canvas.width = 640;
+canvas.height = 480;
+const ctx = canvas.getContext('2d');
+
+function capture(videoElement) {
+    if (!videoElement.videoWidth) return null;
+    ctx.drawImage(videoElement, 0, 0, 640, 480);
+    const dataURL = canvas.toDataURL('image/jpeg', 0.7);
+    return dataURL.split(',')[1];
+}
+
+// ==========================================
+// OLLAMA
+// ==========================================
+const BASE = 'http://localhost:11434';
+const MODEL = 'moondream';
+
+async function checkConnection() {
+    try {
+        const res = await fetch(`${BASE}/api/tags`);
+        if (!res.ok) return { ok: false, error: 'Ollama responded with an error' };
+        const data = await res.json();
+        const hasModel = data.models?.some(m => m.name.startsWith('moondream'));
+        return {
+            ok: true,
+            hasModel,
+            models: data.models?.map(m => m.name) || []
+        };
+    } catch {
+        return { ok: false, error: 'Cannot reach Ollama at localhost:11434' };
+    }
+}
+
+async function describe(base64Image, prompt, onChunk) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort('Inference took too long (>120s)'), 120000);
+
+    onChunk("DEBUG: Fetching...", "DEBUG: Fetching...");
+
+    try {
+        const res = await fetch(`${BASE}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: MODEL,
+                messages: [{
+                    role: 'user',
+                    content: prompt,
+                    images: [base64Image]
+                }],
+                stream: false
+            }),
+            signal: controller.signal
+        });
+
+        onChunk("DEBUG: Fetched HTTP " + res.status, "DEBUG: Fetched HTTP " + res.status);
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Ollama HTTP Error (${res.status}): ${text}`);
+        }
+
+        const data = await res.json();
+        
+        if (data.error) {
+            throw new Error("Ollama JSON Error: " + data.error);
+        }
+
+        const text = data.response || data.message?.content || '';
+        if (text) {
+            onChunk(text, text);
+        } else {
+            onChunk("Model returned no text. (No detection)", "Model returned no text. (No detection)");
+        }
+        
+        return text;
+    } catch (err) {
+        onChunk(`DEBUG EXCEPTION: ${err.message}`, `DEBUG EXCEPTION: ${err.message}`);
+        throw err;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+// ==========================================
+// MAIN APP LOGIC
+// ==========================================
+
+const globalConnectionStatus = document.getElementById('global-connection-status');
+const globalStatusText = document.getElementById('global-status-text');
+
+let ollamaReady = false;
+
+// Notification Setup
+const notifBanner = document.getElementById('notification-permission-banner');
+const enableNotifBtn = document.getElementById('enable-notifications-btn');
+
+if ('Notification' in window && Notification.permission === 'default') {
+    notifBanner.classList.remove('hidden');
+}
+
+if (enableNotifBtn) {
+    enableNotifBtn.addEventListener('click', () => {
+        Notification.requestPermission().then(perm => {
+            if (perm === 'granted') {
+                notifBanner.classList.add('hidden');
+            }
+        });
+    });
+}
+
+async function initOllama() {
+    if (!globalConnectionStatus) return; // safety
+    globalConnectionStatus.className = 'status checking';
+    globalStatusText.textContent = 'INITIALIZING VLM...';
+
+    const result = await checkConnection();
+
+    if (!result.ok) {
+        globalConnectionStatus.className = 'status disconnected';
+        globalStatusText.textContent = 'VLM OFFLINE';
+        return;
+    }
+    if (!result.hasModel) {
+        globalConnectionStatus.className = 'status disconnected';
+        globalStatusText.textContent = 'MODEL MISSING (run: ollama pull moondream)';
+        return;
+    }
+    globalConnectionStatus.className = 'status connected';
+    globalStatusText.textContent = 'VLM ONLINE';
+    ollamaReady = true;
+    
+    // Enable all start buttons if streams are ready
+    if (window.streams) {
+        window.streams.forEach(stream => stream.updateButtons());
+    }
+}
+
+// Setup Streams
+class StreamController {
+    constructor(panelId) {
+        this.panel = document.getElementById(panelId);
+        this.video = this.panel.querySelector('.video');
+        this.camera = new CameraHandler(this.video);
+        
+        // UI Elements
+        this.tabs = this.panel.querySelectorAll('.tab');
+        this.fileInputArea = this.panel.querySelector('.file-input-area');
+        this.urlInputArea = this.panel.querySelector('.url-input-area');
+        this.videoFile = this.panel.querySelector('.video-file');
+        this.videoUrl = this.panel.querySelector('.video-url');
+        this.loadUrlBtn = this.panel.querySelector('.load-url-btn');
+        
+        this.promptInput = this.panel.querySelector('.prompt-input');
+        this.startBtn = this.panel.querySelector('.start-btn');
+        this.stopBtn = this.panel.querySelector('.stop-btn');
+        this.processText = this.panel.querySelector('.process-text');
+        this.processStatus = this.panel.querySelector('.process-status');
+        this.responseHistory = this.panel.querySelector('.response-history');
+        this.clearHistoryBtn = this.panel.querySelector('.clear-history-btn');
+        
+        // Timestamp Element
+        this.tsElement = this.panel.querySelector('.timestamp');
+        setInterval(() => this.updateTimestamp(), 1000);
+        
+        this.currentMode = 'webcam';
+        this.intervalId = null;
+        this.processing = false;
+        this.captureInterval = 3000;
+        
+        this.bindEvents();
+        // Start in file mode to make it easier as requested
+        this.switchMode('file');
+    }
+    
+    updateTimestamp() {
+        if (!this.tsElement) return;
+        const now = new Date();
+        this.tsElement.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    }
+
+    bindEvents() {
+        this.tabs.forEach(tab => {
+            tab.addEventListener('click', () => this.switchMode(tab.dataset.mode));
+        });
+        
+        this.videoFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.camera.loadFile(file);
+                this.updateButtons();
+            }
+        });
+        
+        this.loadUrlBtn.addEventListener('click', () => {
+            const url = this.videoUrl.value.trim();
+            if (url) {
+                this.camera.loadURL(url);
+                this.updateButtons();
+            }
+        });
+        
+        this.startBtn.addEventListener('click', () => this.startCapture());
+        this.stopBtn.addEventListener('click', () => this.stopCapture());
+        this.clearHistoryBtn.addEventListener('click', () => {
+            this.responseHistory.innerHTML = '';
+        });
+        
+        // Handle interval input
+        const intervalSlider = this.panel.querySelector('.interval-slider');
+        const intervalValue = this.panel.querySelector('.interval-value');
+        intervalSlider.addEventListener('input', () => {
+            intervalValue.textContent = intervalSlider.value;
+            this.captureInterval = intervalSlider.value * 1000;
+            if (this.intervalId) {
+                this.stopCapture();
+                this.startCapture();
+            }
+        });
+    }
+    
+    switchMode(mode) {
+        this.stopCapture();
+        this.camera.stop();
+        this.currentMode = mode;
+
+        this.tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+        this.fileInputArea.classList.toggle('hidden', mode !== 'file');
+        this.urlInputArea.classList.toggle('hidden', mode !== 'url');
+
+        if (mode === 'webcam') {
+            this.camera.startWebcam().then(() => this.updateButtons()).catch(err => {
+                if (err.message.includes('Requested device not found') || err.message.includes('NotFoundError')) {
+                    this.setProcessStatus(`CAM ERROR: No webcam found! Please plug one in or use 'UPLOAD VIDEO'.`, true);
+                } else {
+                    this.setProcessStatus(`CAM ERROR: ${err.message}`, true);
+                }
+            });
+        }
+        
+        this.updateButtons();
+    }
+    
+    updateButtons() {
+        const hasSource = this.video.srcObject || this.video.src;
+        // Button enabled if ollama is ready, there is a source, and we are not currently capturing
+        this.startBtn.disabled = !ollamaReady || !hasSource || !!this.intervalId;
+        this.stopBtn.disabled = !this.intervalId;
+    }
+    
+    startCapture() {
+        if (this.intervalId) return;
+        this.intervalId = setInterval(() => this.captureAndProcess(), this.captureInterval);
+        this.captureAndProcess();
+        this.updateButtons();
+    }
+    
+    stopCapture() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+        }
+        this.processing = false;
+        this.setProcessStatus('STANDBY', false);
+        this.updateButtons();
+    }
+    
+    triggerAlert(message) {
+        // Visual alert on the panel
+        this.panel.classList.add('alert-active');
+        
+        // Browser Notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('SENTRY OS - SECURITY ALERT', {
+                body: message,
+                requireInteraction: true
+            });
+        }
+
+        // Add prominent log entry
+        const entry = this.addHistoryEntry();
+        entry.textEl.textContent = `CRITICAL ALERT: ${message}`;
+        entry.textEl.style.color = '#ff003c';
+        entry.textEl.style.fontWeight = 'bold';
+        
+        // Dispatch to backend API
+        fetch('http://localhost:8000/api/alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: message })
+        }).catch(err => console.error('Backend alert failed:', err));
+
+        // Clear visual alert after 5 seconds
+        setTimeout(() => {
+            this.panel.classList.remove('alert-active');
+        }, 5000);
+    }
+
+    async captureAndProcess() {
+        if (this.processing) return;
+        this.processing = true;
+        this.setProcessStatus('SCANNING...', true);
+
+        const base64 = capture(this.video);
+        if (!base64) {
+            this.setProcessStatus('NO FEED', false);
+            this.processing = false;
+            return;
+        }
+
+        const prompt = this.promptInput.value.trim() || 'Describe what you see in this image.';
+        const entry = this.addHistoryEntry();
+        this.setProcessStatus('ANALYZING...', true);
+
+        try {
+            await describe(base64, prompt, (chunk, accumulated) => {
+                entry.textEl.textContent = accumulated;
+                this.responseHistory.scrollTop = this.responseHistory.scrollHeight;
+            });
+            entry.el.classList.remove('streaming');
+            this.setProcessStatus('STANDBY', false);
+            
+            // Post-processing check for Alerts
+            const finalResponse = entry.textEl.textContent.toLowerCase();
+            // Check if the response contains the standalone word "yes"
+            if (/\byes\b/i.test(finalResponse)) {
+                const camTitle = this.panel.querySelector('.cam-title').textContent.split('//')[0].trim();
+                this.triggerAlert(`Masked Person Detected on ${camTitle}!`);
+            }
+            
+        } catch (err) {
+            entry.el.classList.remove('streaming');
+            entry.textEl.className = 'text error-text';
+            entry.textEl.textContent = `SYS ERR: ${err.message}`;
+            this.setProcessStatus('ERROR', false);
+        }
+
+        this.processing = false;
+    }
+    
+    setProcessStatus(text, active) {
+        this.processText.textContent = text;
+        this.processStatus.classList.toggle('active', active);
+    }
+
+    addHistoryEntry() {
+        const el = document.createElement('div');
+        el.className = 'response-entry streaming';
+
+        const ts = document.createElement('div');
+        ts.className = 'timestamp';
+        ts.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+        const textEl = document.createElement('div');
+        textEl.className = 'text';
+
+        el.appendChild(ts);
+        el.appendChild(textEl);
+        this.responseHistory.appendChild(el);
+        this.responseHistory.scrollTop = this.responseHistory.scrollHeight;
+
+        return { el, textEl };
+    }
+}
+
+// Ensure DOM is fully loaded before initializing
+document.addEventListener('DOMContentLoaded', () => {
+    window.streams = [];
+    for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`stream-${i}`);
+        if (el) {
+            window.streams.push(new StreamController(`stream-${i}`));
+        }
+    }
+    initOllama();
+});
