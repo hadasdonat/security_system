@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTRY OS - Threat Archive</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="threat_viewer.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="sys-header">
+        <div class="logo">
+            <span class="pulse-dot"></span> SENTRY OS ARCHIVE
+        </div>
+        <div class="status connected">
+            <span class="dot"></span> ARCHIVE ONLINE
+        </div>
+    </header>
+
+    <div class="archive-container">
+        <div class="sidebar">
+            <div class="sidebar-header">DETECTED THREATS</div>
+            <ul id="threat-list">
+                <!-- Populated by JS -->
+            </ul>
+        </div>
+        <div class="main-view">
+            <div id="video-wrapper">
+                <video id="threat-video" controls autoplay></video>
+                <div class="no-video-msg">SELECT A THREAT FROM THE ARCHIVE</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="threat_viewer.js"></script>
+</body>
+</html>

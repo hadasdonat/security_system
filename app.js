@@ -228,9 +228,109 @@ class StreamController {
         this.processing = false;
         this.captureInterval = 3000;
         
+        // Video recording buffers
+        this.mediaRecorder = null;
+        this.preBuffer = []; 
+        this.postBuffer = [];
+        this.recordingThreat = false;
+        
+        // Setup a persistent canvas for recording to avoid loop freezing and add text
+        this.recordingCanvas = document.createElement('canvas');
+        this.recordingCanvas.width = 640;
+        this.recordingCanvas.height = 480;
+        this.recordingCtx = this.recordingCanvas.getContext('2d');
+        this.camTitle = this.panel.querySelector('.cam-title').textContent.split('//')[0].trim();
+        
+        let lastDraw = 0;
+        const drawLoop = (timestamp) => {
+            if (!timestamp) timestamp = performance.now();
+            
+            // Limit to ~30 FPS to save CPU, but use rAF for smoothness
+            if (timestamp - lastDraw >= 33) {
+                lastDraw = timestamp;
+                if (this.video && !this.video.paused && !this.video.ended && this.video.videoWidth) {
+                    this.recordingCtx.drawImage(this.video, 0, 0, 640, 480);
+                } else {
+                    this.recordingCtx.fillStyle = '#000';
+                    this.recordingCtx.fillRect(0, 0, 640, 480);
+                }
+                
+                // Overlay camera title on top right
+                this.recordingCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.recordingCtx.fillRect(530, 10, 100, 30);
+                this.recordingCtx.fillStyle = '#00ff41';
+                this.recordingCtx.font = '16px "Share Tech Mono", monospace, sans-serif';
+                this.recordingCtx.fillText(this.camTitle, 535, 30);
+
+                // Force pixel update to prevent stream freezing in some browsers
+                this.recordingCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.01)' : 'rgba(0,0,0,0)';
+                this.recordingCtx.fillRect(0,0,1,1);
+            }
+            requestAnimationFrame(drawLoop);
+        };
+        requestAnimationFrame(drawLoop);
+        
+        // Fallback for background tabs
+        setInterval(() => {
+            if (performance.now() - lastDraw > 100) drawLoop(performance.now());
+        }, 100);
+
+        this.setupRecorder();
+        
         this.bindEvents();
         // Start in file mode to make it easier as requested
         this.switchMode('file');
+    }
+    
+    startRecorder(index) {
+        if (this.recorders[index]) {
+            try { this.recorders[index].stop(); } catch(e){}
+        }
+        
+        let stream;
+        if (this.recordingCanvas.captureStream) stream = this.recordingCanvas.captureStream(25);
+        else if (this.recordingCanvas.mozCaptureStream) stream = this.recordingCanvas.mozCaptureStream(25);
+        
+        if (!stream) return;
+
+        const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' :
+                     MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 
+                     MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+                     
+        const myChunks = [];
+        this.chunks[index] = myChunks;
+        this.recorderStartTimes[index] = Date.now();
+        this.recorders[index] = new MediaRecorder(stream, { 
+            mimeType: mime,
+            videoBitsPerSecond: 2500000 // 2.5 Mbps for smooth quality
+        });
+        this.recorders[index].ondataavailable = e => {
+            if (e.data && e.data.size > 0) {
+                myChunks.push(e.data);
+            }
+        };
+        // Record continuously without 1-second fragments to fix MP4 playback stuttering
+        this.recorders[index].start();
+    }
+
+    setupRecorder() {
+        if (this.cycleInterval) clearInterval(this.cycleInterval);
+        if (this.recorders) this.recorders.forEach(r => { if (r) try { r.stop(); } catch(e){} });
+        
+        this.recorders = [null, null];
+        this.chunks = [[], []];
+        this.recorderStartTimes = [0, 0];
+        this.recordingThreat = false;
+        this.activeThreatRecorder = null;
+        
+        this.startRecorder(0);
+        
+        let turn = 1;
+        this.cycleInterval = setInterval(() => {
+            if (this.recordingThreat) return; 
+            this.startRecorder(turn);
+            turn = (turn === 0) ? 1 : 0;
+        }, 10000); // Swap every 10 seconds
     }
     
     updateTimestamp() {
@@ -325,6 +425,72 @@ class StreamController {
         this.updateButtons();
     }
     
+    captureThreatVideo() {
+        if (this.recordingThreat) return;
+        this.recordingThreat = true;
+        
+        // Find which recorder has more history
+        let oldestIndex = 0;
+        let oldestAge = 0;
+        const now = Date.now();
+        for (let i = 0; i < 2; i++) {
+            if (this.recorders[i] && this.recorders[i].state === 'recording') {
+                const age = now - this.recorderStartTimes[i];
+                if (age > oldestAge) {
+                    oldestAge = age;
+                    oldestIndex = i;
+                }
+            }
+        }
+        
+        this.activeThreatRecorder = oldestIndex;
+        // Stop the other recorder so we don't waste memory
+        const otherIndex = oldestIndex === 0 ? 1 : 0;
+        if (this.recorders[otherIndex]) {
+            try { this.recorders[otherIndex].stop(); } catch(e){}
+        }
+        
+        // Wait 10 seconds to collect post-threat buffer
+        setTimeout(() => {
+            const rec = this.recorders[this.activeThreatRecorder];
+            const chk = this.chunks[this.activeThreatRecorder];
+            
+            if (rec) {
+                rec.onstop = () => {
+                    if (!chk || chk.length === 0) return this.setupRecorder();
+                    
+                    const actualMime = rec.mimeType;
+                    const blob = new Blob(chk, { type: actualMime });
+                    const ext = actualMime.includes('mp4') ? 'mp4' : 'webm';
+                    
+                    // Upload
+                    const dt = new Date();
+                    const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const timeStr = dt.toLocaleTimeString('en-US', { hour12: false });
+                    const title = `threat detection from ${dateStr}, ${timeStr}`;
+                    const timestamp = dt.toISOString();
+                    
+                    const url = `/api/upload_video?title=${encodeURIComponent(title)}&timestamp=${encodeURIComponent(timestamp)}&ext=${ext}`;
+                    fetch(url, {
+                        method: 'POST',
+                        body: blob,
+                        headers: { 'Content-Length': blob.size.toString() }
+                    }).then(r => r.json()).then(res => {
+                        console.log("Threat video uploaded:", res);
+                        // Open the viewer window ONLY AFTER recording finishes to prevent the browser
+                        // from putting this tab to sleep and freezing the video capture!
+                        window.open('threat_viewer.html', 'ThreatViewer');
+                    }).catch(e => console.error("Upload error", e));
+                    
+                    this.setupRecorder();
+                };
+                try { rec.stop(); } catch(e){}
+            } else {
+                this.setupRecorder();
+            }
+        }, 10000);
+    }
+
     triggerAlert(message) {
         // Visual alert on the panel
         this.panel.classList.add('alert-active');
@@ -444,6 +610,8 @@ class StreamController {
                 } else {
                     this.triggerAlert(`Masked Person Detected on ${camTitle}!`);
                 }
+                
+                this.captureThreatVideo();
             }
             
         } catch (err) {

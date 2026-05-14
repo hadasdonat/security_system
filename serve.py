@@ -9,6 +9,8 @@ import urllib.parse
 import base64
 import os
 
+import time
+
 PORT = 8000
 
 # Load .env file
@@ -51,6 +53,50 @@ class CORSHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({"status": "error", "error": err}).encode())
+        elif self.path.startswith('/api/upload_video'):
+            parsed_path = urllib.parse.urlparse(self.path)
+            query = urllib.parse.parse_qs(parsed_path.query)
+            
+            title = query.get('title', ['Unknown Threat'])[0]
+            timestamp = query.get('timestamp', [''])[0]
+            ext = query.get('ext', ['webm'])[0]
+            
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 0:
+                video_data = self.rfile.read(content_length)
+                
+                os.makedirs('threat_videos', exist_ok=True)
+                filename = f"threat_{int(time.time()*1000)}.{ext}"
+                filepath = os.path.join('threat_videos', filename)
+                
+                with open(filepath, 'wb') as f:
+                    f.write(video_data)
+                    
+                db_path = 'threat_videos_db.json'
+                db = []
+                if os.path.exists(db_path):
+                    try:
+                        with open(db_path, 'r') as f:
+                            db = json.load(f)
+                    except json.JSONDecodeError:
+                        pass
+                        
+                # Add to beginning of list so newest is first
+                db.insert(0, {
+                    "title": title,
+                    "timestamp": timestamp,
+                    "url": f"/threat_videos/{filename}"
+                })
+                
+                with open(db_path, 'w') as f:
+                    json.dump(db, f, indent=2)
+                    
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "saved", "file": filename}).encode())
+            else:
+                self.send_error(400, "Empty video data")
         else:
             self.send_error(404, "Endpoint not found")
 
