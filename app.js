@@ -429,6 +429,15 @@ class StreamController {
         if (this.recordingThreat) return;
         this.recordingThreat = true;
         
+        // Transfer focus to Threat Viewer IMMEDIATELY
+        // Browsers block scripts from focusing an already open tab without a click event.
+        // To bypass this and force the browser to bring the recordings to the front,
+        // we close the old tab and spawn a new one!
+        if (window.threatViewerTab && !window.threatViewerTab.closed) {
+            window.threatViewerTab.close();
+        }
+        window.threatViewerTab = window.open('threat_viewer.html', '_blank');
+        
         // Find which recorder has more history
         let oldestIndex = 0;
         let oldestAge = 0;
@@ -477,9 +486,6 @@ class StreamController {
                         headers: { 'Content-Length': blob.size.toString() }
                     }).then(r => r.json()).then(res => {
                         console.log("Threat video uploaded:", res);
-                        // Open the viewer window ONLY AFTER recording finishes to prevent the browser
-                        // from putting this tab to sleep and freezing the video capture!
-                        window.open('threat_viewer.html', 'ThreatViewer');
                     }).catch(e => console.error("Upload error", e));
                     
                     this.setupRecorder();
