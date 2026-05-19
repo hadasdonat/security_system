@@ -69,6 +69,31 @@ function capture(videoElement) {
     return dataURL.split(',')[1];
 }
 
+let currentLocation = null;
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(position => {
+        currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+    });
+}
+
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+  var R = 6371; // Radius of the earth in km
+  var dLat = deg2rad(lat2-lat1);  // deg2rad below
+  var dLon = deg2rad(lon2-lon1); 
+  var a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+    ; 
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  var d = R * c; // Distance in km
+  return d;
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI/180);
+}
+
 // ==========================================
 // OLLAMA
 // ==========================================
@@ -163,28 +188,6 @@ async function describe(base64Image, prompt, onChunk) {
 // ==========================================
 // MAIN APP LOGIC
 // ==========================================
-
-let currentLocation = { lat: 31.7674, lng: 35.2186 }; // Default location
-
-if ('geolocation' in navigator) {
-    navigator.geolocation.getCurrentPosition((pos) => {
-        currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    }, (err) => {
-        console.warn("Geolocation error, using default.", err);
-    });
-}
-
-function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of the earth in km
-  const dLat = (lat2 - lat1) * (Math.PI/180);  
-  const dLon = (lon2 - lon1) * (Math.PI/180); 
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * (Math.PI/180)) * Math.cos(lat2 * (Math.PI/180)) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2); 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-  return R * c; // Distance in km
-}
 
 const globalConnectionStatus = document.getElementById('global-connection-status');
 const globalStatusText = document.getElementById('global-status-text');
@@ -285,41 +288,26 @@ class StreamController {
         const drawLoop = (timestamp) => {
             if (!timestamp) timestamp = performance.now();
             
-            // Check for tab suspension (gap > 2000ms)
-            if (lastDraw > 0 && timestamp - lastDraw > 2000 && !this.recordingThreat) {
-                console.warn("Tab was suspended. Resetting recorders to avoid video gaps.");
-                this.setupRecorder();
-                lastDraw = timestamp;
-                requestAnimationFrame(drawLoop);
-                return;
-            }
-            
+            // Limit to ~30 FPS to save CPU, but use rAF for smoothness
             if (timestamp - lastDraw >= 33) {
                 lastDraw = timestamp;
                 if (this.video && !this.video.paused && !this.video.ended && this.video.videoWidth) {
-                    this.recordingCtx.drawImage(this.video, 0, 0, 640, 480);
-                } else if (this.video && this.video.videoWidth) {
                     this.recordingCtx.drawImage(this.video, 0, 0, 640, 480);
                 } else {
                     this.recordingCtx.fillStyle = '#000';
                     this.recordingCtx.fillRect(0, 0, 640, 480);
                 }
                 
+                // Overlay camera title on top right
                 this.recordingCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                 this.recordingCtx.fillRect(530, 10, 100, 30);
                 this.recordingCtx.fillStyle = '#00ff41';
                 this.recordingCtx.font = '16px "Share Tech Mono", monospace, sans-serif';
                 this.recordingCtx.fillText(this.camTitle, 535, 30);
 
+                // Force pixel update to prevent stream freezing in some browsers
                 this.recordingCtx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.01)' : 'rgba(0,0,0,0)';
                 this.recordingCtx.fillRect(0,0,1,1);
-                
-                // Handle swapping recorders precisely without relying on setInterval
-                if (!this.recordingThreat && this.lastSwapTime && (timestamp - this.lastSwapTime >= 10000)) {
-                    this.lastSwapTime = timestamp;
-                    this.startRecorder(this.nextTurn);
-                    this.nextTurn = (this.nextTurn === 0) ? 1 : 0;
-                }
             }
             requestAnimationFrame(drawLoop);
         };
@@ -338,13 +326,13 @@ class StreamController {
     }
     
     startRecorder(index) {
-        if (this.recorders && this.recorders[index]) {
+        if (this.recorders[index]) {
             try { this.recorders[index].stop(); } catch(e){}
         }
         
         let stream;
-        if (this.recordingCanvas.captureStream) stream = this.recordingCanvas.captureStream(30);
-        else if (this.recordingCanvas.mozCaptureStream) stream = this.recordingCanvas.mozCaptureStream(30);
+        if (this.recordingCanvas.captureStream) stream = this.recordingCanvas.captureStream(25);
+        else if (this.recordingCanvas.mozCaptureStream) stream = this.recordingCanvas.mozCaptureStream(25);
         
         if (!stream) return;
 
@@ -357,15 +345,14 @@ class StreamController {
         this.recorderStartTimes[index] = Date.now();
         this.recorders[index] = new MediaRecorder(stream, { 
             mimeType: mime,
-            videoBitsPerSecond: 2500000
+            videoBitsPerSecond: 2500000 // 2.5 Mbps for smooth quality
         });
-        
         this.recorders[index].ondataavailable = e => {
             if (e.data && e.data.size > 0) {
                 myChunks.push(e.data);
             }
         };
-        // Record continuously without 1-second fragments to fix playback issues!
+        // Record continuously without 1-second fragments to fix MP4 playback stuttering
         this.recorders[index].start();
     }
 
@@ -381,8 +368,12 @@ class StreamController {
         
         this.startRecorder(0);
         
-        this.nextTurn = 1;
-        this.lastSwapTime = performance.now();
+        let turn = 1;
+        this.cycleInterval = setInterval(() => {
+            if (this.recordingThreat) return; 
+            this.startRecorder(turn);
+            turn = (turn === 0) ? 1 : 0;
+        }, 10000); // Swap every 10 seconds
     }
     
     updateTimestamp() {
@@ -524,9 +515,7 @@ class StreamController {
             const chk = this.chunks[this.activeThreatRecorder];
             
             if (rec) {
-                let stopped = false;
                 rec.onstop = () => {
-                    stopped = true;
                     if (!chk || chk.length === 0) return this.setupRecorder();
                     
                     const actualMime = rec.mimeType;
@@ -551,22 +540,7 @@ class StreamController {
                     
                     this.setupRecorder();
                 };
-                
-                try { 
-                    if (rec.state !== 'inactive') {
-                        rec.stop(); 
-                    } else {
-                        if (!stopped) this.setupRecorder();
-                    }
-                } catch(e){
-                    if (!stopped) this.setupRecorder();
-                }
-                
-                // Fallback in case onstop never fires
-                setTimeout(() => {
-                    if (!stopped) this.setupRecorder();
-                }, 2000);
-                
+                try { rec.stop(); } catch(e){}
             } else {
                 this.setupRecorder();
             }
